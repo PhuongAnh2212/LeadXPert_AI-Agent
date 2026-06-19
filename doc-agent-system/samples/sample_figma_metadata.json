@@ -1,0 +1,66 @@
+[
+  {
+    "artboard_id": "ART-NI-001",
+    "artboard_name": "Notification Inbox - 1",
+    "figma_file_id": "FIG-NC-V2-20260618",
+    "last_modified": "2026-06-18T08:12:00Z",
+    "description": "Default unified inbox with Critical, Normal, and Low tabs, unread counters, source app labels, and grouped system messages.",
+    "ticket_ref": "NC-201-unified-inbox"
+  },
+  {
+    "artboard_id": "ART-NI-002",
+    "artboard_name": "Notification Inbox - 2",
+    "figma_file_id": "FIG-NC-V2-20260618",
+    "last_modified": "2026-06-18T08:19:00Z",
+    "description": "Filtered inbox state showing swipe actions, archive affordance, notification detail preview, and priority badges.",
+    "ticket_ref": "NC-202-inbox-filter-actions"
+  },
+  {
+    "artboard_id": "ART-QH-001",
+    "artboard_name": "Quiet Hours Setup - 1",
+    "figma_file_id": "FIG-NC-V2-20260618",
+    "last_modified": "2026-06-18T08:31:00Z",
+    "description": "Quiet Hours first-run setup with permission explainer, start time picker, end time picker, weekday selector, and critical alert exception copy.",
+    "ticket_ref": "NC-301-quiet-hours-setup"
+  },
+  {
+    "artboard_id": "ART-QH-002",
+    "artboard_name": "Quiet Hours Setup - 2",
+    "figma_file_id": "FIG-NC-V2-20260618",
+    "last_modified": "2026-06-18T08:40:00Z",
+    "description": "Saved Quiet Hours confirmation state with editable schedule summary, temporary pause action, timezone note, and exception management.",
+    "ticket_ref": "NC-302-quiet-hours-confirmation"
+  },
+  {
+    "artboard_id": "ART-WD-001",
+    "artboard_name": "Weekly Digest Preview",
+    "figma_file_id": "FIG-NC-V2-20260618",
+    "last_modified": "2026-06-18T08:46:00Z",
+    "description": "Monday 8AM digest preview card with grouped highlights, missed normal notifications, low-priority rollups, and manage digest link.",
+    "ticket_ref": "NC-401-weekly-digest"
+  },
+  {
+    "artboard_id": "ART-PUSH-IOS-001",
+    "artboard_name": "Push Notification Permission - iOS",
+    "figma_file_id": "FIG-NC-V2-20260618",
+    "last_modified": "2026-06-18T08:51:00Z",
+    "description": "iOS permission education screen preceding the native permission dialog, including critical alert explanation and settings recovery path.",
+    "ticket_ref": "NC-501-ios-push-permission"
+  },
+  {
+    "artboard_id": "ART-PUSH-AND-001",
+    "artboard_name": "Push Notification Permission - Android",
+    "figma_file_id": "FIG-NC-V2-20260618",
+    "last_modified": "2026-06-18T08:57:00Z",
+    "description": "Android notification permission screen with Android 13 runtime permission copy, channel controls, and deep link to app notification settings.",
+    "ticket_ref": "NC-502-android-push-permission"
+  },
+  {
+    "artboard_id": "ART-PRI-001",
+    "artboard_name": "Priority Settings",
+    "figma_file_id": "FIG-NC-V2-20260618",
+    "last_modified": "2026-06-18T09:04:00Z",
+    "description": "Priority management screen for Critical, Normal, and Low notification categories with examples, override rules, and digest eligibility toggles.",
+    "ticket_ref": "NC-601-priority-settings"
+  }
+]

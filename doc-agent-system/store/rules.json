@@ -1,0 +1,44 @@
+[
+  {
+    "rule_id": "rule_001",
+    "created_at": "2026-06-18T09:00:00Z",
+    "author": "PM-Sarah",
+    "author_role": "pm",
+    "scope": { "feature": "Quiet Hours", "section": "setup_steps", "global": false },
+    "type": "add_section",
+    "instruction": "Add a permissions explainer before setup steps.",
+    "priority": "high",
+    "status": "active",
+    "supersedes": null,
+    "source": "slack_thread_C04X2",
+    "confidence": 1.0
+  },
+  {
+    "rule_id": "rule_002",
+    "created_at": "2026-06-18T09:15:00Z",
+    "author": "PM-Sarah",
+    "author_role": "pm",
+    "scope": { "feature": "All Features", "section": "overview", "global": true },
+    "type": "tone_change",
+    "instruction": "Use a calm, helpful voice and avoid alarmist phrasing when explaining notification controls.",
+    "priority": "normal",
+    "status": "active",
+    "supersedes": null,
+    "source": "slack_thread_C04X2",
+    "confidence": 1.0
+  },
+  {
+    "rule_id": "rule_003",
+    "created_at": "2026-06-18T09:30:00Z",
+    "author": "PM-Sarah",
+    "author_role": "pm",
+    "scope": { "feature": "Weekly Digest", "section": "expected_outcomes", "global": false },
+    "type": "rewrite",
+    "instruction": "Rewrite Weekly Digest outcomes to emphasize Monday 8AM delivery and easy catch-up rather than reducing notification volume only.",
+    "priority": "high",
+    "status": "active",
+    "supersedes": null,
+    "source": "slack_thread_C04X2",
+    "confidence": 1.0
+  }
+]
