@@ -1,6 +1,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const crypto = require('crypto');
+const fs = require('fs');
 const path = require('path');
 const os = require('os');
 const { createSlackApp, verifySlackSignature } = require('../slackServer');
@@ -140,8 +141,8 @@ test('Slack Agent workflow creates, comments, transitions, and reports Jira issu
     configured: () => true,
     createDocumentationTask: async (name) => { jiraCalls.push(['create', name]); return { key: 'DOC-99' }; },
     attachGeneratedDocumentation: async (key, file) => jiraCalls.push(['attach', key, file]),
-    addFeedbackComment: async (key, feedback) => jiraCalls.push(['comment', key, feedback.id]),
-    updateIssueStatus: async (key, status) => { jiraCalls.push(['status', key, status]); return { issueKey: key, status, lastUpdate: '2026-06-21T10:00:00Z' }; },
+    addFeedbackComment: async (key, feedback) => jiraCalls.push(['comment', key, typeof feedback === 'string' ? feedback : feedback.id]),
+    transitionIfAvailable: async (key, statuses) => { jiraCalls.push(['transition', key, statuses.join('|')]); return { issueKey: key, transitioned: true, status: statuses[0], lastUpdate: '2026-06-21T10:00:00Z' }; },
     getIssueStatus: async (key) => ({ issueKey: key, status: 'Done', lastUpdate: '2026-06-21T11:00:00Z' })
   };
   const stateFile = path.join(os.tmpdir(), `jira-state-${Date.now()}.json`);
@@ -150,5 +151,17 @@ test('Slack Agent workflow creates, comments, transitions, and reports Jira issu
   assert.match(await adapter.execute('/agent-a', 'submit-feedback section=FAQ severity=high comment="Clarify"'), /FB-009/);
   await adapter.execute('/agent-a', 'regenerate-docs'); await adapter.execute('/agent-b', 'sync-knowledge');
   assert.match(await adapter.execute('/agent-b', 'jira-status'), /Issue Key: DOC-99\nStatus: Done/);
-  assert.deepEqual(jiraCalls.map((call) => `${call[0]}:${call[2] || ''}`), ['create:', 'attach:/tmp/jira-guide.md', 'comment:FB-009', 'status:In Progress', 'attach:/tmp/jira-guide.md', 'status:Review', 'status:Done']);
+  assert.deepEqual(jiraCalls.map((call) => `${call[0]}:${call[2] || ''}`), ['create:', 'attach:/tmp/jira-guide.md', 'comment:FB-009', 'transition:In Progress', 'attach:/tmp/jira-guide.md', 'transition:Review|In Review', 'comment:Knowledge base synchronized.']);
+});
+
+test('Slack regeneration completes with a Jira warning when Review is unavailable', async () => {
+  const fixture = path.resolve(__dirname, '..', '..', 'samplePRD', 'sample-prd-scheduled-compliance-reports.md'); const comments = [];
+  const generated = { outputFile: '/tmp/jira-warning-guide.md', mode: 'openrouter-agent', prd: { sourceFile: fixture }, markdown: '# Guide' };
+  const agentA = { docsDir: '/tmp', regenerate: async () => generated, feedback: { accepted: () => [{ targetSection: 'FAQ' }] } };
+  const jira = { configured: () => true, transitionIfAvailable: async (_key, statuses) => statuses.includes('Review') ? { transitioned: false, status: 'In Progress', lastUpdate: 'now' } : { transitioned: true, status: 'In Progress', lastUpdate: 'now' }, attachGeneratedDocumentation: async () => {}, addFeedbackComment: async (_key, comment) => comments.push(comment) };
+  const stateFile = path.join(os.tmpdir(), `jira-warning-state-${Date.now()}.json`); fs.writeFileSync(stateFile, JSON.stringify({ issueKey: 'DOC-100' }));
+  const adapter = new SlackAdapter({ agentA, agentB: {}, jira, defaultPrd: fixture, token: 'xoxb-test', client: {}, uploadDir: '/tmp/doc-agent-jira-warning', jiraStateFile: stateFile });
+  const result = await adapter.execute('/agent-a', 'regenerate-docs');
+  assert.match(result, /Completed with Jira warning: Review transition unavailable\./);
+  assert.deepEqual(comments, ['Documentation updated. Review transition was unavailable in this Jira workflow.']);
 });

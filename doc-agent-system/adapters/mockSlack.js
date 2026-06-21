@@ -34,11 +34,20 @@ class SlackAdapter {
     }
     if (command === '/agent-a' && action === 'regenerate-docs') {
       const prdFile = this.resolvePrdFile(remainder || this.last?.prd?.sourceFile || this.defaultPrd); const outputFile = this.last?.outputFile || path.join(this.agentA.docsDir, path.basename(prdFile).replace(/\.markdown$/i, '.md'));
-      if (this.jira?.configured() && this.jiraState.issueKey) await this.jira.updateIssueStatus(this.jiraState.issueKey, 'In Progress');
+      let jiraWarning = '';
+      if (this.jira?.configured() && this.jiraState.issueKey) await this.jira.transitionIfAvailable(this.jiraState.issueKey, ['In Progress']);
       this.last = await this.agentA.regenerate(prdFile, outputFile);
-      if (this.jira?.configured() && this.jiraState.issueKey) { await this.jira.attachGeneratedDocumentation(this.jiraState.issueKey, this.last.outputFile); const jiraStatus = await this.jira.updateIssueStatus(this.jiraState.issueKey, 'Review'); this.saveJiraState({ ...this.jiraState, status: jiraStatus.status, lastUpdate: jiraStatus.lastUpdate }); }
+      if (this.jira?.configured() && this.jiraState.issueKey) {
+        await this.jira.attachGeneratedDocumentation(this.jiraState.issueKey, this.last.outputFile);
+        const jiraStatus = await this.jira.transitionIfAvailable(this.jiraState.issueKey, ['Review', 'In Review']);
+        if (!jiraStatus.transitioned) {
+          await this.jira.addFeedbackComment(this.jiraState.issueKey, 'Documentation updated. Review transition was unavailable in this Jira workflow.');
+          jiraWarning = 'Review transition unavailable.';
+        }
+        this.saveJiraState({ ...this.jiraState, status: jiraStatus.status, lastUpdate: jiraStatus.lastUpdate });
+      }
       const affected = [...new Set(this.agentA.feedback.accepted().map((item) => item.targetSection))];
-      return `Agent A regenerated documentation. Affected sections: ${affected.length ? affected.join(', ') : 'all generated sections'}.`;
+      return `Agent A regenerated documentation. Affected sections: ${affected.length ? affected.join(', ') : 'all generated sections'}.${jiraWarning ? `\nCompleted with Jira warning: ${jiraWarning}` : ''}`;
     }
     if (command === '/agent-a' && action === 'submit-feedback') {
       const feedback = parseFeedback(String(text).replace(/^submit-feedback\s*/i, ''));
@@ -56,7 +65,7 @@ class SlackAdapter {
     if (command === '/agent-b' && action === 'sync-knowledge') {
       if (remainder || !this.last) this.last = await this.agentA.regenerate(this.resolvePrdFile(remainder || this.defaultPrd));
       const result = this.agentB.sync(this.last.prd, this.last.markdown, this.agentA.feedback.read());
-      if (this.jira?.configured() && this.jiraState.issueKey) { const jiraStatus = await this.jira.updateIssueStatus(this.jiraState.issueKey, 'Done'); this.saveJiraState({ ...this.jiraState, status: jiraStatus.status, lastUpdate: jiraStatus.lastUpdate }); }
+      if (this.jira?.configured() && this.jiraState.issueKey) await this.jira.addFeedbackComment(this.jiraState.issueKey, 'Knowledge base synchronized.');
       return `Knowledge base synchronized.\nUpdated nodes: ${result.updatedNodes}\nUpdated edges: ${result.updatedEdges}`;
     }
     if (command === '/agent-b' && action === 'diff-prd') {

@@ -93,7 +93,7 @@ Supported local mock commands are:
 
 ## Jira Cloud integration
 
-Agent A creates a Jira `Task` named `Documentation Review - {document_name}` after generating a guide and attaches the generated Markdown. Slack feedback is copied to the active issue as a Jira comment. Regeneration moves the issue through `In Progress` and `Review`; knowledge synchronization moves it to `Done`.
+Agent A creates a Jira `Task` named `Documentation Review - {document_name}` after generating a guide and attaches the generated Markdown. Slack feedback is copied to the active issue as a Jira comment. During regeneration, Jira transitions are opportunistic: the adapter tries `In Progress`, then prefers `Review` or `In Review`. Knowledge synchronization adds a Jira comment without requiring a status transition.
 
 ### 1. Configure Jira
 
@@ -108,7 +108,7 @@ JIRA_API_TOKEN=your-api-token
 JIRA_PROJECT_KEY=DOC
 ```
 
-The adapter uses Jira Cloud REST API v3 with email/API-token basic authentication. Issue descriptions and comments use Atlassian Document Format. Workflow transition IDs are discovered at runtime, so no numeric transition IDs are stored in configuration. The project workflow must expose the statuses `To Do`, `In Progress`, `Review`, and `Done`.
+The adapter uses Jira Cloud REST API v3 with email/API-token basic authentication. Issue descriptions and comments use Atlassian Document Format. Workflow transition IDs and destination statuses are discovered at runtime, so no numeric transition IDs are stored in configuration. If neither `Review` nor `In Review` is available, regeneration succeeds, leaves the current status unchanged, adds an explanatory Jira comment, and reports a warning in Slack.
 
 ### 2. Use the integrated workflow
 

@@ -40,6 +40,19 @@ class JiraCloud {
     return { issueKey: issue.key, status: issue.fields?.status?.name || 'Unknown', lastUpdate: issue.fields?.updated || null, summary: issue.fields?.summary || '' };
   }
   async availableTransitions(issueKey) { const result = await this.request(`/rest/api/3/issue/${encodeURIComponent(issueKey)}/transitions`); return result.transitions || []; }
+  async transitionIfAvailable(issueKey, preferredStatuses) {
+    const preferred = Array.isArray(preferredStatuses) ? preferredStatuses.filter(Boolean) : [preferredStatuses].filter(Boolean);
+    if (!preferred.length) throw new Error('At least one preferred Jira status is required');
+    const transitions = await this.availableTransitions(issueKey);
+    const transition = preferred.map((status) => transitions.find((item) => item.to?.name?.toLowerCase() === String(status).toLowerCase()) || transitions.find((item) => item.name?.toLowerCase() === String(status).toLowerCase())).find(Boolean);
+    if (!transition) {
+      const current = await this.getIssueStatus(issueKey);
+      return { ...current, transitioned: false, warning: `${preferred.join(' / ')} transition unavailable.` };
+    }
+    await this.request(`/rest/api/3/issue/${encodeURIComponent(issueKey)}/transitions`, { method: 'POST', body: { transition: { id: transition.id } } });
+    const updated = await this.getIssueStatus(issueKey);
+    return { ...updated, transitioned: true, transitionId: transition.id, transitionName: transition.to?.name || transition.name, warning: null };
+  }
   async updateIssueStatus(issueKey, targetStatus) {
     const workflow = ['To Do', 'In Progress', 'Review', 'Done'];
     if (!workflow.some((status) => status.toLowerCase() === String(targetStatus).toLowerCase())) throw new Error(`Unsupported Jira status: ${targetStatus}`);
@@ -48,10 +61,8 @@ class JiraCloud {
     const currentIndex = workflow.findIndex((status) => status.toLowerCase() === current.status.toLowerCase()); const targetIndex = workflow.indexOf(canonicalTarget);
     const steps = currentIndex >= 0 && currentIndex < targetIndex ? workflow.slice(currentIndex + 1, targetIndex + 1) : [canonicalTarget];
     for (const nextStatus of steps) {
-      const transitions = await this.availableTransitions(issueKey);
-      const transition = transitions.find((item) => item.to?.name?.toLowerCase() === nextStatus.toLowerCase()) || transitions.find((item) => item.name?.toLowerCase() === nextStatus.toLowerCase());
-      if (!transition) throw new Error(`No Jira transition from current status to ${nextStatus} for ${issueKey}`);
-      await this.request(`/rest/api/3/issue/${encodeURIComponent(issueKey)}/transitions`, { method: 'POST', body: { transition: { id: transition.id } } });
+      const result = await this.transitionIfAvailable(issueKey, [nextStatus]);
+      if (!result.transitioned) return result;
     }
     return this.getIssueStatus(issueKey);
   }

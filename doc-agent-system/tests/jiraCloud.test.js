@@ -37,3 +37,18 @@ test('Jira Cloud discovers transition IDs and advances To Do through Done', asyn
   const result = await jira.updateIssueStatus('DOC-42', 'Done');
   assert.deepEqual(posts, ['11', '22', '33']); assert.equal(result.status, 'Done'); assert.equal(result.issueKey, 'DOC-42');
 });
+
+test('transitionIfAvailable prefers Review aliases and returns a warning without throwing when unavailable', async () => {
+  let transitions = [{ id: '44', name: 'Send to In Review', to: { name: 'In Review' } }]; const posts = [];
+  const jira = new JiraCloud({ baseUrl: 'https://example.atlassian.net', email: 'user@example.com', apiToken: 'token', projectKey: 'DOC', fetchImpl: async (url, options) => {
+    if (url.endsWith('/transitions') && options.method === 'GET') return jsonResponse(200, { transitions });
+    if (url.endsWith('/transitions') && options.method === 'POST') { posts.push(JSON.parse(options.body).transition.id); return jsonResponse(204, null); }
+    if (url.includes('?fields=status')) return jsonResponse(200, { key: 'DOC-42', fields: { status: { name: posts.length ? 'In Review' : 'In Progress' }, updated: '2026-06-21T10:00:00Z' } });
+    return jsonResponse(404, {});
+  } });
+  const transitioned = await jira.transitionIfAvailable('DOC-42', ['Review', 'In Review']);
+  assert.equal(transitioned.transitioned, true); assert.equal(transitioned.status, 'In Review'); assert.deepEqual(posts, ['44']);
+  transitions = [];
+  const unavailable = await jira.transitionIfAvailable('DOC-42', ['Review', 'In Review', 'In Progress', 'Done']);
+  assert.equal(unavailable.transitioned, false); assert.match(unavailable.warning, /transition unavailable/); assert.equal(unavailable.status, 'In Review');
+});

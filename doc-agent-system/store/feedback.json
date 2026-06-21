@@ -98,5 +98,15 @@
     "suggestedChange": "Add timezone examples",
     "status": "open",
     "createdAt": "2026-06-21T16:47:42.819Z"
+  },
+  {
+    "id": "FB-011",
+    "source": "PM",
+    "targetSection": "FAQ",
+    "comment": "Clarify formats",
+    "severity": "high",
+    "suggestedChange": "Clarify formats",
+    "status": "open",
+    "createdAt": "2026-06-21T16:54:18.141Z"
   }
 ]
