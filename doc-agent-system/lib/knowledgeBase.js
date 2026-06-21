@@ -30,19 +30,25 @@ class KnowledgeBase {
     for (const dir of ['prd', 'docs', 'feedback']) for (const name of fs.readdirSync(path.join(this.root, dir))) if (name.endsWith('.md')) result.push({ file: path.join(dir, name), content: fs.readFileSync(path.join(this.root, dir, name), 'utf8') });
     return result;
   }
-  ask(question) {
+  search(question, limit = 6) {
     const ignored = new Set(['what', 'how', 'are', 'the', 'and', 'does']);
     const aliases = { retained: ['retained', 'retention', 'years'], formats: ['formats', 'format', 'pdf', 'csv'], fails: ['fails', 'failure', 'retry', 'retries'], supported: ['supported', 'supports'] };
     const originalWords = String(question).toLowerCase().split(/[^a-z0-9]+/).filter((word) => word.length > 2 && !ignored.has(word));
     const words = [...new Set(originalWords.flatMap((word) => aliases[word] || [word, word.replace(/s$/, '')]))];
     const chunks = this.notes().flatMap((note) => parseSections(note.content).map((section) => ({ ...note, section: section.title, content: section.content || section.title })));
     const ranked = chunks.map((chunk) => ({ ...chunk, score: words.reduce((score, word) => score + (`${chunk.section} ${chunk.content}`.toLowerCase().includes(word) ? 1 : 0), 0) + (chunk.file.startsWith('docs/') ? 2 : 0) })).sort((a, b) => b.score - a.score || a.content.length - b.content.length);
-    const best = ranked[0];
+    return ranked.filter((item) => item.score > 0).slice(0, limit).map((item) => ({ source: `${item.file}#${item.section}`, content: item.content.slice(0, 4000), score: item.score }));
+  }
+  ask(question) {
+    const ranked = this.search(question, 1); const best = ranked[0];
     if (!best || best.score === 0) return { answer: 'I could not find that in the indexed knowledge base.', citations: [] };
+    const ignored = new Set(['what', 'how', 'are', 'the', 'and', 'does']);
+    const aliases = { retained: ['retained', 'retention', 'years'], formats: ['formats', 'format', 'pdf', 'csv'], fails: ['fails', 'failure', 'retry', 'retries'] };
+    const words = [...new Set(String(question).toLowerCase().split(/[^a-z0-9]+/).filter((word) => word.length > 2 && !ignored.has(word)).flatMap((word) => aliases[word] || [word, word.replace(/s$/, '')]))];
     const sentences = best.content.split(/(?<=[.!?])\s+|\n+/).map((s) => s.trim()).filter(Boolean);
     const relevant = sentences.filter((sentence) => words.some((word) => sentence.toLowerCase().includes(word))).slice(0, 3);
     const answer = (relevant.length ? relevant : sentences.slice(0, 2)).join(' ').replace(/^Source:\s*/i, '');
-    const citation = `${best.file}#${best.section}`;
+    const citation = best.source;
     write(path.join(this.root, 'qa', `${Date.now()}.md`), `# Q&A\n\nQuestion: ${question}\n\nAnswer: ${answer}\n\nSource: [[${citation}]]`);
     return { answer, citations: [citation] };
   }

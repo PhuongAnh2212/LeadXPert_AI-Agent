@@ -1,6 +1,6 @@
 # Agent A + Agent B Documentation System
 
-This repository demonstrates a local two-agent product-documentation workflow:
+This repository implements a two-agent product-documentation workflow powered by the official OpenRouter Agent SDK:
 
 - **Agent A** ingests a markdown PRD, stores structured PRD data, generates a user-facing markdown guide, accepts PM/Customer Support/QA feedback, and regenerates the guide from applied feedback.
 - **Agent B** synchronizes the PRD, generated guide, and feedback history into an Obsidian-style markdown knowledge base and answers Slack-style questions with file/section citations.
@@ -21,10 +21,14 @@ Requires Node.js 18 or newer.
 ```bash
 cd doc-agent-system
 npm install
-npm run demo
+cp .env.example .env
+# Replace OPENROUTER_API_KEY with a real key
+npm run demo:ai
 ```
 
-The demo performs the complete assignment flow: PRD ingestion, initial documentation generation, applied PM feedback, regeneration, knowledge sync, cited Slack Q&A, and Jira task completion.
+`demo:ai` fails fast unless a real `OPENROUTER_API_KEY` is configured. It performs PRD ingestion, OpenRouter Agent A generation, applied PM feedback, AI regeneration, knowledge sync, OpenRouter Agent B Q&A with citations, and Jira task completion. Set `OPENROUTER_MODEL` to any compatible OpenRouter model; the default is `openai/gpt-5-nano`.
+
+For credential-free development, `npm run demo` uses the same workflow with deterministic fallbacks. Every Slack response prints `Mode: openrouter-agent` or `Mode: deterministic-fallback`, so execution mode is never hidden.
 
 Generated runtime artifacts are written to:
 
@@ -48,7 +52,7 @@ Feedback submission is exposed through `MockSlack.handle(command, payload)` beca
 const { createSystem } = require('./index');
 const system = createSystem();
 
-system.slack.handle('/agent-a submit-feedback', {
+await system.slack.handle('/agent-a submit-feedback', {
   source: 'PM',
   targetSection: 'How to schedule reports',
   comment: 'Make retry timing explicit.',
@@ -57,7 +61,7 @@ system.slack.handle('/agent-a submit-feedback', {
   status: 'applied'
 });
 
-system.slack.handle('/agent-a regenerate-docs');
+await system.slack.handle('/agent-a regenerate-docs');
 ```
 
 Valid sources are `PM`, `Customer Support`, and `QA`. Valid statuses are `open`, `applied`, and `rejected`. Only `applied` feedback changes regenerated documentation. All records remain in history, and repeated applied suggestions are counted as learned preferences.
@@ -67,8 +71,8 @@ Valid sources are `PM`, `Customer Support`, and `QA`. Valid statuses are `open`,
 Agent B must synchronize the latest sources before answering:
 
 ```js
-system.slack.handle('/agent-b sync-knowledge');
-console.log(system.slack.handle('/agent-b ask "What formats are supported?"').message);
+await system.slack.handle('/agent-b sync-knowledge');
+console.log((await system.slack.handle('/agent-b ask "What formats are supported?"')).message);
 ```
 
 Every successful answer includes a citation such as:
@@ -106,3 +110,9 @@ npm test
 ```
 
 The suite covers markdown PRD parsing, documentation generation, feedback persistence, feedback-based regeneration, knowledge-base creation and backlinks, Slack command handling, and Q&A citations.
+
+## How the AI agents work
+
+- Agent A uses an OpenRouter multi-turn agent with a `get_source_bundle` tool. The tool supplies parsed PRD sections, optional design inputs, accepted feedback, and accumulated preferences. The model writes the guide and source backlinks.
+- Agent B uses a `search_knowledge_base` tool. The model searches indexed notes, answers only from returned evidence, and returns citations that are validated against actual search results before being shown in Slack.
+- `DOCS_AGENT_REQUIRE_AI=true` prevents fallback execution. `OPENROUTER_STRICT=true` surfaces API/provider failures rather than replacing them with local output.

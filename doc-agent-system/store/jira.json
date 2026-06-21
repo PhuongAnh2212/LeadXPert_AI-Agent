@@ -42,5 +42,38 @@
     "comments": [
       "FB-004: Make retry timing explicit."
     ]
+  },
+  {
+    "key": "DOC-5",
+    "summary": "Generate user documentation from sample PRD",
+    "status": "Done",
+    "attachments": [
+      "/Users/pdpa/Desktop/LeadXPert_AI-Agent/doc-agent-system/generated_docs/scheduled-compliance-reports.md"
+    ],
+    "comments": [
+      "FB-005: Make retry timing explicit."
+    ]
+  },
+  {
+    "key": "DOC-6",
+    "summary": "Generate user documentation from sample PRD",
+    "status": "Done",
+    "attachments": [
+      "/Users/pdpa/Desktop/LeadXPert_AI-Agent/doc-agent-system/generated_docs/scheduled-compliance-reports.md"
+    ],
+    "comments": [
+      "FB-006: Make retry timing explicit."
+    ]
+  },
+  {
+    "key": "DOC-7",
+    "summary": "Generate user documentation from sample PRD",
+    "status": "Done",
+    "attachments": [
+      "/Users/pdpa/Desktop/LeadXPert_AI-Agent/doc-agent-system/generated_docs/scheduled-compliance-reports.md"
+    ],
+    "comments": [
+      "FB-007: Make retry timing explicit."
+    ]
   }
 ]
