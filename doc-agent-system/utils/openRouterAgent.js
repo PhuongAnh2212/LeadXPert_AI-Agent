@@ -34,7 +34,7 @@ async function sourceBundleTool(bundle, onRead = () => {}) {
     name: 'get_source_bundle',
     description: 'Load the parsed PRD, design inputs, accepted feedback, and learned documentation preferences. Call this before writing documentation.',
     inputSchema: z.object({ reason: z.string().describe('Why the source bundle is needed') }),
-    outputSchema: z.object({ prd: z.any(), designInputs: z.array(z.any()), acceptedFeedback: z.array(z.any()), learnedPreferences: z.array(z.any()) }),
+    outputSchema: z.any(),
     execute: async () => { onRead(); return bundle; }
   });
 }

@@ -68,5 +68,25 @@
     "suggestedChange": "Call out the 5-minute and 15-minute retry delays.",
     "status": "applied",
     "createdAt": "2026-06-21T13:04:42.886Z"
+  },
+  {
+    "id": "FB-008",
+    "source": "PM",
+    "targetSection": "How to schedule reports",
+    "comment": "Make retry timing explicit.",
+    "severity": "high",
+    "suggestedChange": "Call out the 5-minute and 15-minute retry delays.",
+    "status": "applied",
+    "createdAt": "2026-06-21T15:55:01.292Z"
+  },
+  {
+    "id": "FB-009",
+    "source": "PM",
+    "targetSection": "How to schedule reports",
+    "comment": "Add timezone examples",
+    "severity": "high",
+    "suggestedChange": "Add timezone examples",
+    "status": "open",
+    "createdAt": "2026-06-21T16:00:09.723Z"
   }
 ]

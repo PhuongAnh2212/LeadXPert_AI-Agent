@@ -1,8 +1,10 @@
 const path = require('path');
 const { AgentA } = require('./agents/agentA');
 const { AgentB } = require('./agents/agentB');
-const { MockSlack } = require('./adapters/mockSlack');
+const { MockSlack } = require('./adapters/localSlack');
 const { MockJira } = require('./adapters/mockJira');
+const { MockUploadWatcher } = require('./adapters/mockUploadWatcher');
+const fs = require('fs');
 
 const root = __dirname;
 const defaultPrd = path.resolve(root, '..', 'samplePRD', 'sample-prd-scheduled-compliance-reports.md');
@@ -11,7 +13,8 @@ function createSystem(options = {}) {
   const agentA = new AgentA(options); const agentB = new AgentB(options);
   const slack = new MockSlack({ agentA, agentB, defaultPrd: options.defaultPrd || defaultPrd });
   const jira = new MockJira(options.jiraFile || path.join(options.dataDir || path.join(root, 'store'), 'jira.json'));
-  return { agentA, agentB, slack, jira };
+  const watcher = new MockUploadWatcher({ agentA, agentB, slack });
+  return { agentA, agentB, slack, jira, watcher };
 }
 
 async function demo(prdFile = defaultPrd, options = {}) {
@@ -31,14 +34,32 @@ async function demo(prdFile = defaultPrd, options = {}) {
   return system;
 }
 
+async function demoChange(prdFile = defaultPrd) {
+  const demoRoot = path.join(root, 'store', 'change-demo'); fs.rmSync(demoRoot, { recursive: true, force: true }); fs.mkdirSync(demoRoot, { recursive: true });
+  const oldFile = path.join(demoRoot, 'prd-v1.2.md'); const newFile = path.join(demoRoot, 'prd-v1.3.md'); const figmaFile = path.join(demoRoot, 'figma-v1.3.json');
+  const base = fs.readFileSync(prdFile, 'utf8');
+  fs.writeFileSync(oldFile, `${base}\n\n## Recurring Schedule\n\nOwners are notified after two failed generation retries.\n`);
+  fs.writeFileSync(newFile, `${base}\n\n## Recurring Schedule\n\nOwners and Customer Support are notified after three failed generation retries, with a diagnostic link.\n`);
+  fs.writeFileSync(figmaFile, `${JSON.stringify({ screens: [{ id: 'schedule-v13', name: 'Recurring Schedule Settings', controls: ['retry count', 'diagnostic link'] }] }, null, 2)}\n`);
+  const system = createSystem({ dataDir: path.join(demoRoot, 'agent-store'), docsDir: path.join(demoRoot, 'generated-docs'), knowledgeRoot: path.join(demoRoot, 'knowledge_base'), jiraFile: path.join(demoRoot, 'jira.json') });
+  await system.watcher.upload({ prdFile: oldFile, source: 'shared_drive', uploadedBy: 'PM-Sarah', version: 'v1.2' }); system.slack.posts.length = 0;
+  const result = await system.watcher.upload({ prdFile: newFile, figmaFile, source: 'slack', uploadedBy: 'PM-Sarah', version: 'v1.3' });
+  console.log('Change detection');
+  for (const post of system.slack.messages(result.threadTs).filter((item) => item.type === 'alert')) console.log(post.message);
+  console.log(`Agent A regenerated: ${result.generated.regeneratedSections.join(', ')}`);
+  console.log(result.summary);
+  return result;
+}
+
 if (require.main === module) {
   const [command = 'demo', prdFile = defaultPrd, ...rest] = process.argv.slice(2);
   const system = createSystem({ defaultPrd: prdFile });
   (async () => {
     if (command === 'demo') await demo(path.resolve(prdFile));
+    else if (command === 'demo:change') await demoChange(path.resolve(prdFile));
     else if (command.startsWith('/')) console.log((await system.slack.handle([command, prdFile, ...rest].join(' '))).message);
     else throw new Error('Use `node index.js demo [prd_file]` or a quoted mock Slack command.');
   })().catch((error) => { console.error(error.message); process.exitCode = 1; });
 }
 
-module.exports = { createSystem, demo };
+module.exports = { createSystem, demo, demoChange };

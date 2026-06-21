@@ -1,8 +1,11 @@
 const fs = require('fs');
 const path = require('path');
 const { parseSections } = require('./prdParser');
+const { sectionMap } = require('./docSections');
+const { hashContent } = require('./changeMonitor');
+const { safeVersion } = require('./versionStore');
 
-function ensureDirs(root) { ['prd', 'docs', 'feedback', 'qa'].forEach((dir) => fs.mkdirSync(path.join(root, dir), { recursive: true })); }
+function ensureDirs(root) { ['prd', 'docs', 'feedback', 'qa', 'graph', 'versions/prd', 'versions/figma'].forEach((dir) => fs.mkdirSync(path.join(root, dir), { recursive: true })); }
 function safe(value) { return String(value || '').replace(/[\r\n|]/g, ' ').trim(); }
 function write(file, content) { fs.writeFileSync(file, `${content.trim()}\n`); return file; }
 
@@ -23,7 +26,34 @@ class KnowledgeBase {
     const docBacklinks = feedback.filter((f) => f.status === 'applied').map((f) => `[[${f.id}]]`).join(', ');
     write(path.join(this.root, 'docs', 'scheduled-compliance-reports.md'), `${docsMarkdown}\n\n## Feedback backlinks\n\n${docBacklinks || 'No applied feedback.'}`);
     for (const item of feedback) write(path.join(this.root, 'feedback', `${item.id}.md`), `# ${item.id}\n\nSource: ${item.source}\nStatus: ${item.status}\nSeverity: ${item.severity}\nTarget: [[scheduled-compliance-reports#${safe(item.targetSection)}]]\n\n${item.comment}\n\nSuggested change: ${item.suggestedChange}`);
-    return { root: this.root, requirements: prd.requirements.length, acceptanceCriteria: prd.acceptanceCriteria.length, feedback: feedback.length };
+    const edgesFile = path.join(this.root, 'graph', 'edges.json'); const edgeCount = fs.existsSync(edgesFile) ? JSON.parse(fs.readFileSync(edgesFile, 'utf8')).length : 0;
+    return { root: this.root, requirements: prd.requirements.length, acceptanceCriteria: prd.acceptanceCriteria.length, feedback: feedback.length, updatedNodes: prd.requirements.length + prd.acceptanceCriteria.length + feedback.length + 2, updatedEdges: edgeCount };
+  }
+  indexDocumentVersion({ version, oldVersion = null, oldMarkdown = '', newMarkdown, regeneratedSections = [] }) {
+    const versionFile = path.join(this.root, 'docs', `scheduled-compliance-reports-${safeVersion(version)}.md`); write(versionFile, newMarkdown);
+    const edgesFile = path.join(this.root, 'graph', 'edges.json'); const edges = fs.existsSync(edgesFile) ? JSON.parse(fs.readFileSync(edgesFile, 'utf8')) : [];
+    const oldSections = sectionMap(oldMarkdown); const newSections = sectionMap(newMarkdown);
+    if (oldVersion) for (const heading of regeneratedSections) {
+      const edge = { from: `doc:${version}#${heading}`, relation: 'supersedes', to: `doc:${oldVersion}#${heading}`, oldHash: oldSections.has(heading) ? hashContent(oldSections.get(heading)) : null, newHash: newSections.has(heading) ? hashContent(newSections.get(heading)) : null, createdAt: new Date().toISOString() };
+      if (!edges.some((item) => item.from === edge.from && item.to === edge.to && item.relation === edge.relation)) edges.push(edge);
+    }
+    fs.writeFileSync(edgesFile, `${JSON.stringify(edges, null, 2)}\n`);
+    const faq = this.updateFaqIndex(newMarkdown, regeneratedSections, version);
+    return { versionFile, edges, faq, staleFaqCount: faq.filter((item) => item.status === 'stale').length };
+  }
+  updateFaqIndex(markdown, regeneratedSections, version) {
+    const file = path.join(this.root, 'qa', 'faq_index.json'); const prior = fs.existsSync(file) ? JSON.parse(fs.readFileSync(file, 'utf8')) : [];
+    let faq = prior; const initialized = !faq.length;
+    if (initialized) {
+      const faqRaw = sectionMap(markdown).get('FAQ') || ''; const questions = [...faqRaw.matchAll(/^###\s+(.+)\n([\s\S]*?)(?=^###\s+|(?![\s\S]))/gm)];
+      faq = questions.map((match, index) => ({ id: `FAQ-${String(index + 1).padStart(3, '0')}`, question: match[1].trim(), content: match[2].trim(), linkedSections: inferFaqLinks(match[1]), status: 'active', version }));
+    }
+    faq = faq.map((item) => {
+      if (initialized) return item;
+      const stale = regeneratedSections.includes('FAQ') || (item.linkedSections || []).some((heading) => regeneratedSections.includes(heading));
+      return stale ? { ...item, status: 'stale', staleSince: version } : item;
+    });
+    fs.writeFileSync(file, `${JSON.stringify(faq, null, 2)}\n`); return faq;
   }
   notes() {
     const result = [];
@@ -54,4 +84,12 @@ class KnowledgeBase {
   }
 }
 
-module.exports = { KnowledgeBase };
+function inferFaqLinks(question) {
+  if (/format|download/i.test(question)) return ['How to download generated reports'];
+  if (/fail|retry|schedule/i.test(question)) return ['How to schedule reports'];
+  if (/retention|retain|audit/i.test(question)) return ['Report retention and audit trail'];
+  if (/scope|limitation/i.test(question)) return ['Known limitations / out-of-scope items'];
+  return ['Overview'];
+}
+
+module.exports = { KnowledgeBase, inferFaqLinks };

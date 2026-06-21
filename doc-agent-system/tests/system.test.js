@@ -1,4 +1,5 @@
 const test = require('node:test');
+process.env.DOCS_AGENT_REQUIRE_AI = 'false';
 const assert = require('node:assert/strict');
 const fs = require('fs');
 const os = require('os');
@@ -6,7 +7,7 @@ const path = require('path');
 const { parsePrd } = require('../lib/prdParser');
 const { AgentA } = require('../agents/agentA');
 const { AgentB } = require('../agents/agentB');
-const { MockSlack } = require('../adapters/mockSlack');
+const { MockSlack } = require('../adapters/localSlack');
 const { generateDocumentation } = require('../lib/documentGenerator');
 
 const fixture = path.resolve(__dirname, '..', '..', 'samplePRD', 'sample-prd-scheduled-compliance-reports.md');

@@ -102,6 +102,163 @@ The `MockJira` adapter supports:
 
 State is persisted locally in `store/jira.json`.
 
+## Real Slack integration
+
+The production Slack entry point is an Express server backed by Slack's Web API. It exposes:
+
+```text
+GET  /health
+POST /slack/commands
+POST /slack/events
+```
+
+Slack request timestamps and HMAC signatures are verified with `SLACK_SIGNING_SECRET`. Slash commands are acknowledged immediately; completed AI results are delivered asynchronously through Slack's `response_url`, avoiding Slack's three-second command timeout.
+
+### 1. Create and configure the Slack app
+
+1. Create an app at [api.slack.com/apps](https://api.slack.com/apps) and select the target workspace.
+2. Under **OAuth & Permissions**, add these bot token scopes:
+   - `commands`
+   - `chat:write`
+   - `files:read`
+   - `app_mentions:read`
+3. Install or reinstall the app and copy the `xoxb-...` bot token.
+4. Copy the signing secret from **Basic Information > App Credentials**.
+5. Make the local server reachable through an HTTPS tunnel or deploy it to a public HTTPS host.
+
+### 2. Configure environment variables
+
+```bash
+cd doc-agent-system
+cp .env.example .env
+```
+
+Set at least:
+
+```dotenv
+SLACK_BOT_TOKEN=xoxb-your-real-token
+SLACK_SIGNING_SECRET=your-real-signing-secret
+PORT=3000
+```
+
+Agent A and Agent B also use `OPENROUTER_API_KEY` when AI mode is enabled.
+
+### 3. Register slash commands
+
+Create two slash commands in **Slash Commands**:
+
+| Command | Request URL |
+|---|---|
+| `/agent-a` | `https://YOUR_HOST/slack/commands` |
+| `/agent-b` | `https://YOUR_HOST/slack/commands` |
+
+Supported command text:
+
+```text
+/agent-a generate-docs [prd_file]
+/agent-a regenerate-docs [prd_file]
+/agent-a submit-feedback source="PM" section="FAQ" severity="high" status="applied" comment="Clarify formats" suggested="Name PDF and CSV"
+/agent-b ask <question>
+/agent-b sync-knowledge [prd_file]
+/agent-b diff-prd
+/agent-b status
+/agent-a help
+/agent-b help
+```
+
+Examples and completed responses:
+
+```text
+/agent-a generate-docs sample-prd-scheduled-compliance-reports.md
+→ Agent A started documentation generation.
+→ Agent A completed documentation generation.
+  Documentation saved to .../generated_docs/sample-prd-scheduled-compliance-reports.md
+
+/agent-a regenerate-docs
+→ Agent A regenerated documentation.
+  Affected sections: FAQ, How to schedule reports
+
+/agent-a submit-feedback section="How to schedule reports" severity=high comment="Add timezone examples"
+→ Feedback stored.
+  Feedback ID: FB-XXX
+
+/agent-b ask How long are reports retained?
+→ Answer text
+  Sources: docs/scheduled-compliance-reports.md#Report retention and audit trail
+
+/agent-b sync-knowledge
+→ Knowledge base synchronized.
+  Updated nodes: X
+  Updated edges: Y
+
+/agent-b diff-prd
+→ Changed sections detected between latest PRD versions (v1.2 → v1.3).
+  • Recurring Schedule (modified)
+
+/agent-b status
+→ Latest PRD version: v1.3
+  Latest documentation version: v1.3
+  Knowledge base status: synchronized
+  Feedback count: 3
+  FAQ stale count: 1
+```
+
+`prd_file` must be readable by the server. Alternatively, upload a `.md` or `.markdown` PRD to Slack and subscribe to `file_shared`; Agent A downloads it with the bot token and generates documentation.
+
+### 4. Configure Events API
+
+Enable **Event Subscriptions** and set the request URL to:
+
+```text
+https://YOUR_HOST/slack/events
+```
+
+Subscribe to these bot events:
+
+- `app_mention` — asks Agent B a threaded question
+- `file_shared` — ingests uploaded Markdown PRDs
+
+The endpoint supports Slack URL verification and deduplicates retried `event_id` values in process memory.
+
+### 5. Start the server
+
+```bash
+npm run slack
+```
+
+The server listens on port `3000` by default. Verify it with:
+
+```bash
+curl http://localhost:3000/health
+```
+
+Expected response:
+
+```json
+{"status":"ok","service":"ai-documentation-slack"}
+```
+
+The credential-free local adapter used by tests and demos remains in `adapters/localSlack.js`; production HTTP traffic uses `adapters/mockSlack.js`, which now contains the real Slack Web API adapter.
+
+## Change-aware PRD and Figma monitoring
+
+The mock upload watcher accepts `{ prdFile, figmaFile?, source, uploaded_by, version }`, where `source` is `slack` or `shared_drive`. Agent B stores immutable snapshots and hashes under:
+
+- `knowledge_base/versions/prd/`
+- `knowledge_base/versions/figma/`
+
+It compares normalized content by heading, posts one Slack alert per added/modified/removed section, maps changes to affected guide sections, and sends only those sections—plus applicable feedback, existing documentation, and matched Figma screens—to Agent A. Unchanged H2 sections are preserved byte-for-byte.
+
+Updated guide versions are stored in `generated_docs/versions/`. Supersedes relationships are written to `knowledge_base/graph/edges.json`; FAQ freshness is maintained in `knowledge_base/qa/faq_index.json`.
+
+Run the end-to-end change demo:
+
+```bash
+npm run demo:change
+```
+
+The demo indexes v1.2, uploads a changed v1.3 PRD and Figma export, prints the mock Slack alerts, performs partial regeneration, updates the graph, and prints the PM summary.
+
 ## Tests
 
 ```bash

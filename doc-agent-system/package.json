@@ -8,12 +8,15 @@
     "start": "node index.js",
     "demo": "node index.js demo ../samplePRD/sample-prd-scheduled-compliance-reports.md",
     "demo:ai": "DOCS_AGENT_REQUIRE_AI=true node index.js demo ../samplePRD/sample-prd-scheduled-compliance-reports.md",
+    "demo:change": "node index.js demo:change ../samplePRD/sample-prd-scheduled-compliance-reports.md",
+    "slack": "node slackServer.js",
     "test": "node --test tests/*.test.js"
   },
   "dependencies": {
     "@openrouter/agent": "^0.7.2",
-    "@slack/bolt": "^3.17.0",
+    "@slack/web-api": "^6.13.0",
     "dotenv": "^16.0.0",
+    "express": "^4.22.2",
     "node-fetch": "^3.3.2",
     "zod": "^4.4.3"
   }

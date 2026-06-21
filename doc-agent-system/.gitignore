@@ -2,3 +2,4 @@
 .env.example
 node_modules/
 store/unanswered.json
+store/change-demo/

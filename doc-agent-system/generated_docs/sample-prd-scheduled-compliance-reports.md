@@ -55,7 +55,3 @@ A: Reports can be delivered via email as attachments or secure download links, o
 - Cross-tenant reporting is not available; reports are scoped to a single tenant.
 - Message content redaction in reports is not included; reports will contain full message content as captured.
 - A dedicated mobile viewing experience for reports is not in scope.
-
-## Feedback backlinks
-
-[[FB-001]], [[FB-002]], [[FB-003]], [[FB-004]], [[FB-005]], [[FB-006]], [[FB-007]], [[FB-008]]
