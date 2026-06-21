@@ -6,8 +6,8 @@
   "type": "commonjs",
   "scripts": {
     "start": "node index.js",
-    "test:agentA": "node -e \"require('./agents/agentA').generateDoc(require('fs').readFileSync('./samples/sample_prd.md','utf8'), require('./samples/sample_figma_metadata.json')).then(console.log)\"",
-    "test:agentB": "node -e \"require('./agents/agentB').answerQuestion('How do I set up quiet hours?').then(console.log)\""
+    "demo": "node index.js demo ../samplePRD/sample-prd-scheduled-compliance-reports.md",
+    "test": "node --test tests/*.test.js"
   },
   "dependencies": {
     "@slack/bolt": "^3.17.0",

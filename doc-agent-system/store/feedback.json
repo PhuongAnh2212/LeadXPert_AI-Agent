@@ -1,0 +1,42 @@
+[
+  {
+    "id": "FB-001",
+    "source": "PM",
+    "targetSection": "How to schedule reports",
+    "comment": "Make retry timing explicit.",
+    "severity": "high",
+    "suggestedChange": "Call out the 5-minute and 15-minute retry delays.",
+    "status": "applied",
+    "createdAt": "2026-06-21T12:38:00.086Z"
+  },
+  {
+    "id": "FB-002",
+    "source": "PM",
+    "targetSection": "How to schedule reports",
+    "comment": "Make retry timing explicit.",
+    "severity": "high",
+    "suggestedChange": "Call out the 5-minute and 15-minute retry delays.",
+    "status": "applied",
+    "createdAt": "2026-06-21T12:38:54.936Z"
+  },
+  {
+    "id": "FB-003",
+    "source": "PM",
+    "targetSection": "How to schedule reports",
+    "comment": "Make retry timing explicit.",
+    "severity": "high",
+    "suggestedChange": "Call out the 5-minute and 15-minute retry delays.",
+    "status": "applied",
+    "createdAt": "2026-06-21T12:39:36.906Z"
+  },
+  {
+    "id": "FB-004",
+    "source": "PM",
+    "targetSection": "How to schedule reports",
+    "comment": "Make retry timing explicit.",
+    "severity": "high",
+    "suggestedChange": "Call out the 5-minute and 15-minute retry delays.",
+    "status": "applied",
+    "createdAt": "2026-06-21T12:41:01.977Z"
+  }
+]

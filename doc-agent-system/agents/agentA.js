@@ -1,34 +1,30 @@
-const { chatCompletion } = require('../utils/openRouterClient');
-const promptBuilder = require('../utils/promptBuilder');
-const figmaMatch = require('../matching/figmaMatch');
-const { loadActiveRules, saveRule } = require('../layers/layer2_feedback');
-const { generateStructuredDoc } = require('../layers/layer1_generate');
+const path = require('path');
+const { ingestPrd } = require('../lib/prdParser');
+const { FeedbackStore } = require('../lib/feedbackStore');
+const { generateDocumentation, saveDocumentation } = require('../lib/documentGenerator');
+const { ingestDesign } = require('../lib/designParser');
 
-async function generateDoc(prdText, figmaMetadata) {
-  const rules = loadActiveRules();
-  const screenMappings = figmaMatch.matchAll(prdText, figmaMetadata);
-  const system = promptBuilder.agentASystem(rules);
-  const user = `PRD TEXT:\n${prdText}\n\nFIGMA SCREEN MAPPINGS:\n${JSON.stringify(screenMappings, null, 2)}\n\nGenerate the structured documentation now.`;
-  const completion = await chatCompletion({ system, user, maxTokens: 2000 });
-
-  return completion || generateStructuredDoc(prdText, figmaMetadata, rules);
+class AgentA {
+  constructor({ dataDir, docsDir, designFiles = [] } = {}) {
+    this.dataDir = dataDir || path.join(__dirname, '..', 'store');
+    this.docsDir = docsDir || path.join(__dirname, '..', 'generated_docs');
+    this.feedback = new FeedbackStore(path.join(this.dataDir, 'feedback.json'));
+    this.designFiles = designFiles;
+  }
+  ingest(prdFile) {
+    const prd = ingestPrd(prdFile);
+    prd.designInputs = this.designFiles.map(ingestDesign);
+    const output = path.join(this.dataDir, 'prd-structured.json');
+    require('fs').mkdirSync(path.dirname(output), { recursive: true }); require('fs').writeFileSync(output, `${JSON.stringify(prd, null, 2)}\n`);
+    return prd;
+  }
+  generate(prdFile, outputFile = path.join(this.docsDir, 'scheduled-compliance-reports.md')) {
+    const prd = this.ingest(prdFile); const markdown = generateDocumentation(prd, []); saveDocumentation(markdown, outputFile); return { prd, markdown, outputFile };
+  }
+  submitFeedback(input) { return this.feedback.submit(input); }
+  regenerate(prdFile, outputFile = path.join(this.docsDir, 'scheduled-compliance-reports.md')) {
+    const prd = this.ingest(prdFile); const markdown = generateDocumentation(prd, this.feedback.accepted()); saveDocumentation(markdown, outputFile); return { prd, markdown, outputFile, preferences: this.feedback.preferences() };
+  }
 }
 
-async function rerunWithCorrection(originalDoc, prdText, correctionText, figmaMetadata) {
-  const rules = loadActiveRules();
-  const screenMappings = figmaMatch.matchAll(prdText, figmaMetadata);
-  const system = promptBuilder.agentASystem(rules);
-  const user = `ORIGINAL DOC:\n${originalDoc}\n\nPRD TEXT:\n${prdText}\n\nFIGMA SCREEN MAPPINGS:\n${JSON.stringify(screenMappings, null, 2)}\n\nPM CORRECTION:\n${correctionText}\n\nRevise the documentation while preserving the required output format.`;
-  const completion = await chatCompletion({ system, user, maxTokens: 2000 });
-  const newRule = saveRule(correctionText, inferFeature(correctionText, originalDoc), 'generated_doc', 'PM-Sarah');
-
-  return completion || `${generateStructuredDoc(prdText, figmaMetadata, [...rules, newRule], correctionText)}\n`;
-}
-
-function inferFeature(correctionText, originalDoc) {
-  const lower = correctionText.toLowerCase();
-  const features = [...originalDoc.matchAll(/^## Feature:\s*(.+)$/gm)].map((match) => match[1].trim());
-  return features.find((feature) => lower.includes(feature.toLowerCase())) || features[0] || 'General';
-}
-
-module.exports = { generateDoc, rerunWithCorrection };
+module.exports = { AgentA };
