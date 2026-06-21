@@ -88,5 +88,15 @@
     "suggestedChange": "Add timezone examples",
     "status": "open",
     "createdAt": "2026-06-21T16:00:09.723Z"
+  },
+  {
+    "id": "FB-010",
+    "source": "PM",
+    "targetSection": "How to schedule reports",
+    "comment": "Add timezone examples",
+    "severity": "high",
+    "suggestedChange": "Add timezone examples",
+    "status": "open",
+    "createdAt": "2026-06-21T16:47:42.819Z"
   }
 ]

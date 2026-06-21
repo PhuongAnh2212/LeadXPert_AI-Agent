@@ -3,3 +3,5 @@
 node_modules/
 store/unanswered.json
 store/change-demo/
+store/jira-current.json
+store/slack-uploads/

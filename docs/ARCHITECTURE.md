@@ -63,7 +63,7 @@ flowchart TB
 | Slack Web API adapter | Production slash commands, response URLs, file events, and app mentions | `adapters/mockSlack.js`, `slackServer.js` |
 | Local Slack adapter | Credential-free commands, alerts, replies, and thread capture | `adapters/localSlack.js` |
 | Mock upload watcher | Slack/shared-drive upload boundary | `adapters/mockUploadWatcher.js` |
-| Mock Jira | Documentation task, attachment, comment, and status lifecycle | `adapters/mockJira.js` |
+| Jira Cloud adapter | Issue creation, Markdown attachment upload, feedback comments, and discovered workflow transitions | `adapters/jiraCloud.js` |
 
 ### Architectural principles
 
@@ -558,7 +558,7 @@ The test suite uses Node's built-in test runner and temporary directories, avoid
 | Unit | Markdown parsing, normalization, hashing, diff classification, feedback validation |
 | Agent A | Required section contract, accepted-feedback regeneration, OpenRouter route selection, unchanged-section preservation |
 | Agent B | Knowledge indexing, Q&A citations, citation filtering, changed-section signaling |
-| Integration | Baseline upload → v1.3 PRD/Figma upload → partial generation → graph/FAQ updates |
+| Integration | Baseline upload → v1.3 PRD/Figma upload → partial generation → graph/FAQ updates; Slack → Jira lifecycle |
 | Knowledge graph | Supersedes edge direction, old/new hashes, versioned node identifiers |
 | Slack simulation | Exact alerts, shared thread IDs, revised-section replies, final summary |
 | Feedback loop | Persistence, accepted-state filtering, repeated preference counts, targeted partial context |
@@ -566,7 +566,7 @@ The test suite uses Node's built-in test runner and temporary directories, avoid
 
 ### Current automated coverage
 
-At the time of this document, 16 automated tests pass. They cover:
+At the time of this document, 19 automated tests pass. They cover:
 
 - Markdown PRD parsing
 - Full documentation generation
@@ -579,6 +579,8 @@ At the time of this document, 16 automated tests pass. They cover:
 - Agent B search-tool citation validation
 - Slack signature verification and registered Express routes
 - Real Slack adapter response-URL delivery and all supported slash actions
+- Jira Cloud task creation, Markdown attachment upload, ADF feedback comments, and dynamic transition discovery
+- Slack-driven Jira creation, feedback, regeneration, synchronization, and status reporting
 - PRD change classification and normalized hashes
 - End-to-end upload monitoring, partial regeneration, graph edges, FAQ freshness, and Slack summary
 
@@ -596,7 +598,7 @@ The integration suite explicitly asserts that an unaffected **Overview** section
 ### Near term
 
 - **Slack operational hardening:** add durable event deduplication, distributed job execution, rate-limit telemetry, and production retry queues around the implemented Web API integration.
-- **Real Jira integration:** replace JSON task storage with Jira issue creation, attachment upload, comments, transitions, and webhook-driven feedback.
+- **Jira operational hardening:** add webhook-driven feedback, idempotency keys, retry queues, and rate-limit telemetry around the implemented Jira Cloud REST integration.
 - **Direct Figma API ingestion:** consume Figma file versions and node metadata through webhooks instead of uploaded exports.
 - **Vector search:** add embeddings and hybrid retrieval while retaining exact source identifiers and citation validation.
 
@@ -626,7 +628,7 @@ The integration suite explicitly asserts that an unaffected **Overview** section
 | Generate documentation from PRD and designs | Agent A full generation plus optional JSON/Markdown design inputs | `agents/agentA.js`, `lib/designParser.js` |
 | Parse PRD sections and structured requirements | PRD ingestion pipeline | `lib/prdParser.js` |
 | Feedback loop | Persistent feedback store, status lifecycle, targeted application, repeated preference detection | `lib/feedbackStore.js`, Agent A |
-| Slack/Jira human interface | Real signed Slack HTTP/Web API integration, local Slack test adapter, and mock Jira task lifecycle | `slackServer.js`, `adapters/mockSlack.js`, `adapters/localSlack.js`, `adapters/mockJira.js` |
+| Slack/Jira human interface | Real signed Slack HTTP/Web API integration, local Slack test adapter, and Jira Cloud issue lifecycle | `slackServer.js`, `adapters/mockSlack.js`, `adapters/localSlack.js`, `adapters/jiraCloud.js` |
 | Knowledge organization | Obsidian-style PRD, docs, feedback, Q&A, version, and graph storage | `lib/knowledgeBase.js` |
 | Question-answer interface | Agent B search tool, grounded OpenRouter answer, validated citations | `agents/agentB.js`, `utils/openRouterAgent.js` |
 | PRD/design version monitoring | Mock Slack/shared-drive watcher and version store | `adapters/mockUploadWatcher.js`, `lib/versionStore.js` |
@@ -640,4 +642,4 @@ The integration suite explicitly asserts that an unaffected **Overview** section
 
 ### Coverage assessment
 
-The assignment's core demonstration requirements are implemented end to end. Slack has a production HTTP/Web API integration plus a local test adapter. Jira, shared-drive, and Figma interactions currently use local adapters or exports where production credentials are unavailable. These boundaries allow external services to evolve without rewriting PRD parsing, feedback learning, change detection, partial regeneration, knowledge indexing, graph management, or grounded Q&A.
+The assignment's core demonstration requirements are implemented end to end. Slack and Jira Cloud have production HTTP integrations, while Slack also has a local test adapter. Shared-drive and Figma interactions currently use local adapters or exports where production credentials are unavailable. These boundaries allow external services to evolve without rewriting PRD parsing, feedback learning, change detection, partial regeneration, knowledge indexing, graph management, or grounded Q&A.

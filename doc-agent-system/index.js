@@ -2,7 +2,7 @@ const path = require('path');
 const { AgentA } = require('./agents/agentA');
 const { AgentB } = require('./agents/agentB');
 const { MockSlack } = require('./adapters/localSlack');
-const { MockJira } = require('./adapters/mockJira');
+const { JiraCloud } = require('./adapters/jiraCloud');
 const { MockUploadWatcher } = require('./adapters/mockUploadWatcher');
 const fs = require('fs');
 
@@ -12,7 +12,7 @@ const defaultPrd = path.resolve(root, '..', 'samplePRD', 'sample-prd-scheduled-c
 function createSystem(options = {}) {
   const agentA = new AgentA(options); const agentB = new AgentB(options);
   const slack = new MockSlack({ agentA, agentB, defaultPrd: options.defaultPrd || defaultPrd });
-  const jira = new MockJira(options.jiraFile || path.join(options.dataDir || path.join(root, 'store'), 'jira.json'));
+  const jira = options.jira || new JiraCloud(options.jiraOptions);
   const watcher = new MockUploadWatcher({ agentA, agentB, slack });
   return { agentA, agentB, slack, jira, watcher };
 }
@@ -20,17 +20,17 @@ function createSystem(options = {}) {
 async function demo(prdFile = defaultPrd, options = {}) {
   const system = createSystem({ ...options, defaultPrd: prdFile });
   console.log((await system.slack.handle(`/agent-a generate-docs "${prdFile}"`)).message);
-  const task = system.jira.createDocumentationTask('Generate user documentation from sample PRD');
-  system.jira.attachGeneratedDocs(task.key, system.slack.last.outputFile);
+  let task = null;
+  if (system.jira.configured()) { task = await system.jira.createDocumentationTask(path.basename(system.slack.last.outputFile)); await system.jira.attachGeneratedDocumentation(task.key, system.slack.last.outputFile); }
   const feedback = await system.slack.handle('/agent-a submit-feedback', { source: 'PM', targetSection: 'How to schedule reports', comment: 'Make retry timing explicit.', severity: 'high', suggestedChange: 'Call out the 5-minute and 15-minute retry delays.', status: 'applied' });
-  system.jira.addFeedbackComment(task.key, `${feedback.data.id}: ${feedback.data.comment}`);
+  if (task) await system.jira.addFeedbackComment(task.key, feedback.data);
   console.log(feedback.message);
   console.log((await system.slack.handle(`/agent-a regenerate-docs "${prdFile}"`)).message);
   console.log((await system.slack.handle('/agent-b sync-knowledge')).message);
   const answer = await system.slack.handle('/agent-b ask "How long are reports retained?"');
   console.log(`\nSlack Q&A\n${answer.message}`);
-  system.jira.updateTaskStatus(task.key, 'Done');
-  console.log(`\nMock Jira ${task.key} updated to Done.`);
+  if (task) { await system.jira.updateIssueStatus(task.key, 'Done'); console.log(`\nJira ${task.key} updated to Done.`); }
+  else console.log('\nJira credentials not configured; Jira workflow skipped.');
   return system;
 }
 

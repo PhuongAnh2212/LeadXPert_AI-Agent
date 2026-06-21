@@ -4,7 +4,7 @@ This repository implements a two-agent product-documentation workflow powered by
 
 - **Agent A** ingests a markdown PRD, stores structured PRD data, generates a user-facing markdown guide, accepts PM/Customer Support/QA feedback, and regenerates the guide from applied feedback.
 - **Agent B** synchronizes the PRD, generated guide, and feedback history into an Obsidian-style markdown knowledge base and answers Slack-style questions with file/section citations.
-- **Mock Slack and Jira adapters** provide a credential-free human-agent interface and task workflow.
+- **Slack and Jira Cloud adapters** provide production human-agent interfaces, with a local Slack adapter for credential-free development.
 
 ## Important project boundary
 
@@ -34,7 +34,7 @@ Generated runtime artifacts are written to:
 
 - `doc-agent-system/store/prd-structured.json`
 - `doc-agent-system/store/feedback.json`
-- `doc-agent-system/store/jira.json`
+- `doc-agent-system/store/jira-current.json` (latest Jira issue reference)
 - `doc-agent-system/generated_docs/scheduled-compliance-reports.md`
 - `doc-agent-system/knowledge_base/{prd,docs,feedback,qa}/`
 
@@ -91,16 +91,42 @@ Supported local mock commands are:
 /agent-b ask <question>
 ```
 
-## Mock Jira
+## Jira Cloud integration
 
-The `MockJira` adapter supports:
+Agent A creates a Jira `Task` named `Documentation Review - {document_name}` after generating a guide and attaches the generated Markdown. Slack feedback is copied to the active issue as a Jira comment. Regeneration moves the issue through `In Progress` and `Review`; knowledge synchronization moves it to `Done`.
 
-- `createDocumentationTask(summary)`
-- `attachGeneratedDocs(taskKey, filePath)`
-- `addFeedbackComment(taskKey, comment)`
-- `updateTaskStatus(taskKey, status)`
+### 1. Configure Jira
 
-State is persisted locally in `store/jira.json`.
+1. Create an API token from your Atlassian account security settings.
+2. Ensure the Jira user can browse and create issues, add attachments and comments, and transition issues in the target project.
+3. Add these values to `doc-agent-system/.env`:
+
+```dotenv
+JIRA_BASE_URL=https://your-domain.atlassian.net
+JIRA_EMAIL=you@example.com
+JIRA_API_TOKEN=your-api-token
+JIRA_PROJECT_KEY=DOC
+```
+
+The adapter uses Jira Cloud REST API v3 with email/API-token basic authentication. Issue descriptions and comments use Atlassian Document Format. Workflow transition IDs are discovered at runtime, so no numeric transition IDs are stored in configuration. The project workflow must expose the statuses `To Do`, `In Progress`, `Review`, and `Done`.
+
+### 2. Use the integrated workflow
+
+Run the Slack server, then generate documentation normally:
+
+```bash
+npm run slack
+```
+
+```text
+/agent-a generate-docs sample-prd-scheduled-compliance-reports.md
+/agent-a submit-feedback section="FAQ" severity="high" comment="Clarify formats"
+/agent-a regenerate-docs
+/agent-b sync-knowledge
+/agent-b jira-status
+```
+
+`/agent-b jira-status` returns the active issue key, current status, and Jira's last-updated timestamp. The active issue reference is persisted locally in `store/jira-current.json`; Jira remains the source of truth for issue state.
 
 ## Real Slack integration
 
@@ -108,6 +134,7 @@ The production Slack entry point is an Express server backed by Slack's Web API.
 
 ```text
 GET  /health
+POST /mock-response
 POST /slack/commands
 POST /slack/events
 ```
@@ -162,6 +189,7 @@ Supported command text:
 /agent-b sync-knowledge [prd_file]
 /agent-b diff-prd
 /agent-b status
+/agent-b jira-status
 /agent-a help
 /agent-b help
 ```
@@ -237,6 +265,24 @@ Expected response:
 ```json
 {"status":"ok","service":"ai-documentation-slack"}
 ```
+
+### Local slash-command testing
+
+Signature verification remains enabled by default. For local-only `curl` testing, opt into the development bypass when starting the server:
+
+```bash
+DEV_DISABLE_SLACK_SIGNATURE=true npm run slack
+```
+
+The server prints a warning whenever this bypass is active. In another terminal, send a local slash command and point its asynchronous response back to the mock response endpoint:
+
+```bash
+curl -i -X POST http://localhost:3000/slack/commands \
+  -H "Content-Type: application/x-www-form-urlencoded" \
+  --data "command=/agent-a&text=help&user_id=U123&channel_id=C123&response_url=http://localhost:3000/mock-response"
+```
+
+The command request returns immediately. `POST /mock-response` then logs the final JSON payload and returns HTTP `200 OK`. Never set `DEV_DISABLE_SLACK_SIGNATURE=true` in a deployed environment.
 
 The credential-free local adapter used by tests and demos remains in `adapters/localSlack.js`; production HTTP traffic uses `adapters/mockSlack.js`, which now contains the real Slack Web API adapter.
 
