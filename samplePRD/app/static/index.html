@@ -1,0 +1,13 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Compliance Search</title><link rel="stylesheet" href="/static/styles.css"></head>
+<body><main>
+  <header><div><span class="eyebrow">COMPLIANCE</span><h1>Message Search</h1><p>Search captured communications, then preserve the exact query as a scheduled report.</p></div><button id="save">Save as Report Template</button></header>
+  <section class="panel"><div class="toolbar"><h2>Search filters</h2><select id="templates"><option value="">Load Filters…</option></select></div>
+    <div class="grid"><label>Channels<input id="channels" placeholder="Email, Teams, WhatsApp"></label><label>Policies<input id="policies" placeholder="Market abuse, Prohibited language"></label><label>Business units<input id="units" placeholder="Trading, Advisory"></label><label>Keywords<input id="keywords" placeholder="Enter keywords"></label><label>Date range<select id="range"><option value="last_n_days">Last N days</option><option value="previous_week">Previous calendar week</option><option value="previous_month">Previous calendar month</option><option value="previous_quarter">Previous calendar quarter</option><option value="rolling_window">Custom rolling window</option></select></label><label>Days<input id="days" type="number" value="7" min="1"></label></div>
+  </section>
+  <section class="panel results"><h2>Search results</h2><p>Connect the SearchProvider adapter to display platform results here.</p></section>
+</main>
+<dialog id="modal"><form method="dialog"><h2>Save report template</h2><label>Name<input id="name" required></label><label>Description<textarea id="description"></textarea></label><label>Columns<input id="columns" value="date,channel,sender,policy,message"></label><div id="warning" hidden>External recipients may receive sensitive compliance data. Check the acknowledgment before saving.</div><label>Recipients<input id="recipients" placeholder="analyst@company.com"></label><label class="check"><input id="ack" type="checkbox"> I acknowledge delivery to external recipients</label><menu><button value="cancel" class="secondary">Cancel</button><button id="confirm" value="default">Save template</button></menu></form></dialog>
+<div id="toast"></div><script src="/static/app.js"></script></body></html>
+
